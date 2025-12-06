@@ -7,6 +7,7 @@ import { createServer, Server } from 'http';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import picksRouter from './routes/picks.routes';
 
 // Load environment variables
 config();
@@ -52,7 +53,10 @@ class App {
   }
 
   private initializeRoutes(): void {
-    // API routes will be added here
+    // Picks API routes
+    this.app.use('/picks', picksRouter);
+
+    // Root welcome route
     this.app.get('/', (req: Request, res: Response) => {
       res.json({ message: 'Welcome to P10 API - F1 Prediction Game' });
     });

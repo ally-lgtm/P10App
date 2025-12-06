@@ -73,3 +73,21 @@ logs
 
 # Yarn Integrity file
 .yarn-integrity
+
+
+# Inore node modules and evnrionemnt files
+node_modules/
+.env
+.DS_Store
+/dist/
+/build/
+/.next/
+/out/
+
+api.env
+api.env.example
+
+client/.env
+client/.env.example
+client/.env.local
+client/.env.*.local

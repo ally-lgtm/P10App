@@ -1,0 +1,470 @@
+openapi: 3.0.3
+info:
+  title: P10 Picks API
+  version: 1.0.0
+  description: |
+    REST API for managing P10 picks in an F1 fantasy league.
+    This API is the only interface to the picks database; clients
+    must not access the database directly.
+
+    Based on PostgreSQL schema:
+
+    - Table: public.picks
+      - pick_id uuid PRIMARY KEY
+      - user_id uuid NOT NULL
+      - league_id uuid NOT NULL
+      - race_id uuid NOT NULL
+      - p10_driver_id uuid NULL
+      - first_retirement_driver_id uuid NULL
+      - fastest_lap_driver_id uuid NULL
+      - submitted_at timestamptz NOT NULL DEFAULT now()
+      - UNIQUE (user_id, league_id, race_id)
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://sandbox.api.example.com
+    description: Sandbox server
+
+tags:
+  - name: Picks
+    description: CRUD operations for P10 picks
+
+paths:
+  /picks:
+    get:
+      tags: [Picks]
+      summary: List picks
+      description: |
+        Returns a paginated list of picks. Optionally filter by user, league, and race.
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          description: Filter picks by user ID
+          schema:
+            type: string
+            format: uuid
+        - name: leagueId
+          in: query
+          required: false
+          description: Filter picks by league ID
+          schema:
+            type: string
+            format: uuid
+        - name: raceId
+          in: query
+          required: false
+          description: Filter picks by race ID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Maximum number of results to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of results to skip (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of picks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PickListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags: [Picks]
+      summary: Create a pick
+      description: |
+        Creates a new pick for a given user, league, and race.
+
+        Enforces the uniqueness constraint: a user can have at most one pick
+        per (userId, leagueId, raceId) combination. Violations should return HTTP 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickCreateRequest'
+      responses:
+        '201':
+          description: Pick created
+          headers:
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A pick already exists for this (userId, leagueId, raceId)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /picks/{pickId}:
+    get:
+      tags: [Picks]
+      summary: Get a pick by ID
+      parameters:
+        - name: pickId
+          in: path
+          required: true
+          description: Unique identifier of the pick
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pick found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '404':
+          description: Pick not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags: [Picks]
+      summary: Replace a pick
+      description: |
+        Replaces all updatable fields of a pick.
+
+        If you prefer partial updates, use PATCH instead.
+      parameters:
+        - name: pickId
+          in: path
+          required: true
+          description: Unique identifier of the pick
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickUpdateRequest'
+      responses:
+        '200':
+          description: Pick updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pick not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Update would violate the (userId, leagueId, raceId) uniqueness constraint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [Picks]
+      summary: Partially update a pick
+      description: |
+        Partially updates a pick. Only fields present in the request body
+        will be updated.
+      parameters:
+        - name: pickId
+          in: path
+          required: true
+          description: Unique identifier of the pick
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickPatchRequest'
+      responses:
+        '200':
+          description: Pick updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Pick not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Update would violate the (userId, leagueId, raceId) uniqueness constraint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Picks]
+      summary: Delete a pick
+      parameters:
+        - name: pickId
+          in: path
+          required: true
+          description: Unique identifier of the pick
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Pick deleted successfully
+        '404':
+          description: Pick not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Pick:
+      type: object
+      description: |
+        Represents a P10 pick made by a user in a specific league and race.
+      properties:
+        pickId:
+          type: string
+          format: uuid
+          description: Primary key of the pick (public.picks.pick_id)
+          example: "11111111-aaaa-4aaa-8aaa-aaaaaaaaaaa1"
+        userId:
+          type: string
+          format: uuid
+          description: References auth.users(id)
+          example: "b667a30b-ad6c-4eb8-9e30-2cdc68ecf093"
+        leagueId:
+          type: string
+          format: uuid
+          description: References public.leagues(league_id)
+          example: "11111111-1111-4111-8111-111111111111"
+        raceId:
+          type: string
+          format: uuid
+          description: References public.races(race_id)
+          example: "aaaa1111-aaaa-4aaa-8aaa-aaaaaaaaaaa1"
+        p10DriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: References public.drivers(driver_id); predicted driver for P10
+          example: "d1111111-0000-4000-8000-000000000001"
+        firstRetirementDriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: References public.drivers(driver_id); predicted first retirement
+          example: "d2222222-0000-4000-8000-000000000002"
+        fastestLapDriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: References public.drivers(driver_id); predicted fastest lap
+          example: "d3333333-0000-4000-8000-000000000003"
+        submittedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the pick was submitted (public.picks.submitted_at)
+          example: "2025-03-10T12:34:56Z"
+      required:
+        - pickId
+        - userId
+        - leagueId
+        - raceId
+        - submittedAt
+
+    PickCreateRequest:
+      type: object
+      description: Payload for creating a new pick.
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: ID of the user making the pick.
+        leagueId:
+          type: string
+          format: uuid
+          description: ID of the league where the pick is made.
+        raceId:
+          type: string
+          format: uuid
+          description: ID of the race the pick applies to.
+        p10DriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Predicted P10 driver.
+        firstRetirementDriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Predicted first retirement driver.
+        fastestLapDriverId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Predicted fastest lap driver.
+      required:
+        - userId
+        - leagueId
+        - raceId
+
+    PickUpdateRequest:
+      type: object
+      description: |
+        Payload for replacing a pick (PUT).
+        All non-nullable fields must be provided.
+      properties:
+        userId:
+          type: string
+          format: uuid
+        leagueId:
+          type: string
+          format: uuid
+        raceId:
+          type: string
+          format: uuid
+        p10DriverId:
+          type: string
+          format: uuid
+          nullable: true
+        firstRetirementDriverId:
+          type: string
+          format: uuid
+          nullable: true
+        fastestLapDriverId:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+        - userId
+        - leagueId
+        - raceId
+
+    PickPatchRequest:
+      type: object
+      description: |
+        Payload for partially updating a pick (PATCH).
+        All fields are optional; only supplied fields will be updated.
+      properties:
+        userId:
+          type: string
+          format: uuid
+        leagueId:
+          type: string
+          format: uuid
+        raceId:
+          type: string
+          format: uuid
+        p10DriverId:
+          type: string
+          format: uuid
+          nullable: true
+        firstRetirementDriverId:
+          type: string
+          format: uuid
+          nullable: true
+        fastestLapDriverId:
+          type: string
+          format: uuid
+          nullable: true
+
+    PickListResponse:
+      type: object
+      description: Paginated list of picks.
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pick'
+        total:
+          type: integer
+          description: Total number of matching picks (before pagination)
+          example: 42
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+      required:
+        - items
+        - total
+        - limit
+        - offset
+
+    ErrorResponse:
+      type: object
+      description: Standard error payload
+      properties:
+        code:
+          type: string
+          description: Application-specific error code
+          example: "PICK_ALREADY_EXISTS"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "A pick already exists for this user, league, and race."
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Optional contextual details (e.g., field-level validation errors)
+      required:
+        - code
+        - message
+
+
