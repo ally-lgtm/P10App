@@ -1,8 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger';
 
+interface ValidationError {
+  [key: string]: {
+    message: string;
+    path: string;
+    value: any;
+  };
+}
+
+interface ExtendedError extends Error {
+  statusCode?: number;
+  errors?: ValidationError;
+  code?: number | string;
+}
+
 export const errorHandler = (
-  err: any,
+  err: ExtendedError,
   req: Request,
   res: Response,
   next: NextFunction
@@ -13,8 +27,13 @@ export const errorHandler = (
   // Log the error
   logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${statusCode}, Message:: ${err.message}`);
   
-  // Don't leak error details in production
-  const errorResponse = {
+  // Base error response
+  const errorResponse: {
+    status: string;
+    message: string;
+    stack?: string;
+    errors?: ValidationError;
+  } = {
     status: 'error',
     message: statusCode === 500 ? 'Internal Server Error' : err.message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -29,7 +48,7 @@ export const errorHandler = (
   }
 
   // Handle validation errors
-  if (err.name === 'ValidationError') {
+  if (err.name === 'ValidationError' && err.errors) {
     errorResponse.message = 'Validation Error';
     errorResponse.errors = err.errors;
   }
