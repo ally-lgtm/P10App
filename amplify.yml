@@ -3,23 +3,39 @@ frontend:
   phases:
     preBuild:
       commands:
-        - cd P10App/client
-        - npm ci
+        - echo "Installing dependencies..."
+        - npm ci --prefer-offline
     build:
       commands:
+        - echo "Building the app..."
         - npm run build
   artifacts:
-    baseDirectory: P10App/client/dist
+    baseDirectory: dist
     files:
       - '**/*'
   cache:
     paths:
-      - P10App/client/node_modules/**/*
-      - P10App/client/.cache/**/*
-      - P10App/client/.vite/**/*
+      - node_modules/**/*
+      - .cache/**/*
+      - .vite/**/*
+  customHeaders:
+    - pattern: '**/*'
+      headers:
+        - key: 'Cache-Control'
+          value: 'public, max-age=0, must-revalidate'
+        - key: 'Strict-Transport-Security'
+          value: 'max-age=31536000; includeSubDomains'
+        - key: 'X-Frame-Options'
+          value: 'SAMEORIGIN'
+        - key: 'X-Content-Type-Options'
+          value: 'nosniff'
+        - key: 'X-XSS-Protection'
+          value: '1; mode=block'
+        - key: 'Referrer-Policy'
+          value: 'same-origin'
 
 # Environment variables
-# Make sure to set these in the Amplify Console
+# Add these in the AWS Amplify Console
 # - VITE_SUPABASE_URL
 # - VITE_SUPABASE_ANON_KEY
 # - VITE_API_BASE
