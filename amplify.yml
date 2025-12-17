@@ -3,21 +3,24 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Installing dependencies..."
-        - npm ci --prefer-offline
+        - echo "Installing root dependencies..."
+        - npm ci
+        - echo "Installing client dependencies..."
+        - cd P10App/client && npm ci --prefer-offline && cd ../..
     build:
       commands:
-        - echo "Building the app..."
-        - npm run build
+        - echo "Building client..."
+        - cd P10App/client && npm run build && cd ../..
   artifacts:
-    baseDirectory: dist
+    baseDirectory: P10App/client/dist
     files:
       - '**/*'
   cache:
     paths:
+      - P10App/client/node_modules/**/*
+      - P10App/client/.cache/**/*
+      - P10App/client/.vite/**/*
       - node_modules/**/*
-      - .cache/**/*
-      - .vite/**/*
   customHeaders:
     - pattern: '**/*'
       headers:
